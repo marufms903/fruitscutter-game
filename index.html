@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Fruit Ninja Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      touch-action: none;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: url('https://images.unsplash.com/photo-1592841161733-84dc2b36ff1e?auto=format&fit=crop&w=1350&q=80');
+      background-size: cover;
+      background-position: center;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #ui, #endScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      background-color: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      z-index: 10;
+      text-align: center;
+    }
+    #startBtn, #restartBtn {
+      padding: 15px 40px;
+      font-size: 28px;
+      background: linear-gradient(45deg, #ff416c, #ff4b2b);
+      border: none;
+      color: white;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    #startBtn:hover, #restartBtn:hover {
+      transform: scale(1.1);
+    }
+    #score {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 22px;
+      z-index: 5;
+    }
+    #knife {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background: url('https://cdn-icons-png.flaticon.com/512/3144/3144456.png') no-repeat center;
+      background-size: contain;
+      pointer-events: none;
+      z-index: 20;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <h1 style="margin-bottom: 20px; font-size: 40px;">Fruit Slice</h1>
+    <button id="startBtn">Start Game</button>
+  </div>
+  <div id="score">Score: 0</div>
+  <div id="endScreen" style="display: none;">
+    <h2>Game Over</h2>
+    <p id="finalScore"></p>
+    <p id="rating"></p>
+    <button id="restartBtn">Play Again</button>
+  </div>
+  <div id="knife"></div>
+  <audio id="sliceSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_7c9bc5c687.mp3"></audio>
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const startBtn = document.getElementById("startBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const ui = document.getElementById("ui");
+    const scoreDisplay = document.getElementById("score");
+    const endScreen = document.getElementById("endScreen");
+    const finalScore = document.getElementById("finalScore");
+    const rating = document.getElementById("rating");
+    const knife = document.getElementById("knife");
+    const sliceSound = document.getElementById("sliceSound");
+
+    let fruits = [];
+    let score = 0;
+    let gameActive = false;
+    let gameInterval;
+
+    const fruitImages = [
+      'https://cdn-icons-png.flaticon.com/512/415/415733.png',
+      'https://cdn-icons-png.flaticon.com/512/135/135620.png',
+      'https://cdn-icons-png.flaticon.com/512/135/135687.png',
+      'https://cdn-icons-png.flaticon.com/512/590/590685.png',
+      'https://cdn-icons-png.flaticon.com/512/686/686589.png',
+      'https://cdn-icons-png.flaticon.com/512/590/590697.png',
+      'https://cdn-icons-png.flaticon.com/512/686/686656.png'
+    ];
+
+    class Fruit {
+      constructor(x, y, radius, velocityY, imgSrc) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.velocityY = velocityY;
+        this.img = new Image();
+        this.img.src = imgSrc;
+        this.sliced = false;
+      }
+      draw() {
+        ctx.drawImage(this.img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
+      }
+      update() {
+        this.y += this.velocityY;
+        this.draw();
+      }
+    }
+
+    function spawnFruit() {
+      const x = Math.random() * canvas.width;
+      const y = -60;
+      const radius = 35 + Math.random() * 15;
+      const velocityY = 3 + Math.random() * 2;
+      const imgSrc = fruitImages[Math.floor(Math.random() * fruitImages.length)];
+      fruits.push(new Fruit(x, y, radius, velocityY, imgSrc));
+    }
+
+    function animate() {
+      if (!gameActive) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      fruits.forEach((fruit, index) => {
+        fruit.update();
+        if (fruit.y - fruit.radius > canvas.height) {
+          endGame();
+        }
+      });
+      requestAnimationFrame(animate);
+    }
+
+    function updateScore() {
+      scoreDisplay.innerText = `Score: ${score}`;
+    }
+
+    function endGame() {
+      gameActive = false;
+      clearInterval(gameInterval);
+      endScreen.style.display = 'flex';
+      finalScore.innerText = `Your Score: ${score}`;
+      if (score > 100) rating.innerText = "🌟🌟🌟 Excellent!";
+      else if (score > 50) rating.innerText = "🌟🌟 Good!";
+      else rating.innerText = "🌟 Try Again!";
+    }
+
+    function resetGame() {
+      fruits = [];
+      score = 0;
+      updateScore();
+      endScreen.style.display = 'none';
+      gameActive = true;
+      gameInterval = setInterval(spawnFruit, 600);
+      animate();
+    }
+
+    function sliceAt(x, y) {
+      knife.style.left = x - 30 + 'px';
+      knife.style.top = y - 30 + 'px';
+      fruits.forEach((fruit, index) => {
+        const dx = x - fruit.x;
+        const dy = y - fruit.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < fruit.radius && !fruit.sliced) {
+          fruit.sliced = true;
+          score += 10;
+          updateScore();
+          sliceSound.currentTime = 0;
+          sliceSound.play();
+          fruits.splice(index, 1);
+        }
+      });
+    }
+
+    canvas.addEventListener("mousemove", (e) => {
+      if (!gameActive) return;
+      sliceAt(e.pageX, e.pageY);
+    });
+
+    canvas.addEventListener("touchmove", (e) => {
+      if (!gameActive) return;
+      const touch = e.touches[0];
+      sliceAt(touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    startBtn.addEventListener('click', () => {
+      ui.style.display = 'none';
+      resetGame();
+    });
+
+    restartBtn.addEventListener('click', () => {
+      resetGame();
+    });
+  </script>
+</body>
+</html>
